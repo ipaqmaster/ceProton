@@ -1,0 +1,76 @@
+#!/bin/bash
+
+_scriptRoot="$(dirname $(realpath $0))"
+UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+cd ${_scriptRoot}
+
+LD_LIBRARY_PATH="${HOME}/.local/share/lutris/runtime/Ubuntu-18.04-i686"
+
+function askQuestion {
+  echo "${1}"
+  read -n1 -s answer
+
+  if [ "$answer" != "${answer#[Yy]}" ]
+  then
+    echo Continuing...
+  else
+    echo Bailing.
+    exit 1
+  fi
+
+}
+
+if ! [ -d "${LD_LIBRARY_PATH}" ]
+then
+  echo "${LD_LIBRARY_PATH} is missing and is currently required for the CE installer to succeed."
+  echo "Please install Lutris and make these available before trying again."
+  exit 1
+fi
+
+ceDownloadHtml="$(curl -Ss https://www.cheatengine.org/downloads.php | grep -m1 'download_link')"
+ceDownloadVersion="$(grep -Po '(?<=Download Cheat Engine )[0-9]+\.[0-9]+' <<< "${ceDownloadHtml}")"
+ceDownloadLink="$(awk -F'[= "]' '{for(i=1; i<=NF; i++) {if($i ~ "^https") print $i}}' <<< "${ceDownloadHtml}")"
+wget --content-disposition --no-clobber --quiet --show-progress -U "${UA}" "${ceDownloadLink}"
+
+currentlyRunningTitle="$(ps aux|grep -Po '(?<=SteamLaunch AppId=)[0-9]+')"
+currentlyRunningTitleWineExecutable="$(ps aux | grep -Eo '/.*compatibilitytools.*wineserver$' | sed 's/wineserver/wine/g')"
+
+intendedInstaller="$(ls -1 -t CheatEngine*.exe | head -n1)"
+
+if [ -z "${intendedInstaller}" ]
+then
+  echo "Failed to detect most recently downloaded installer.  Did the download fail?"
+  exit 1
+fi
+
+if [ -n "${currentlyRunningTitle}" ]
+then
+  echo "Detected AppId ${currentlyRunningTitle} is running with Proton."
+  askQuestion "Is this the title we should be installed to?"
+fi
+
+if [ -z "${currentlyRunningTitleWineExecutable}" ]
+then
+  echo "Failed to detect the Steam compatibilitytools WINE binary this title is using."
+  echo "Please ensure the wineserver can be found in your processlist before continuing. (e.g. ps aux |grep wineserver)"
+  exit 1
+fi
+
+# lsof arg details here: https://serverfault.com/a/106408
+echo "Using lsof to dynamically detect the pfx directory..."
+pfxDir="$(timeout -s1 30 lsof -a -d0-999 -c 'wineserver' | grep -Eom1 "/.*${currentlyRunningTitle}/pfx$")"
+
+if [ -z "${pfxDir}" ]
+then
+  echo "Failed to detect the pfx directory. Please check you are running a title with Proton and try again"
+fi
+
+existingInstallation="$(ls -1d /data/steam/steamapps/compatdata/${currentlyRunningTitle}/pfx/drive_c/Program\ Files/Cheat\ Engine\ * 2>/dev/null)"
+if [ -d "${existingInstallation}" ]
+then
+  echo "CE appears to be installed already under ${existingInstallation/*drive_c}."
+fi
+
+askQuestion "Install to ${pfxDir}?"
+
+WINEFSYNC=1 LD_LIBRARY_PATH="${LD_LIBRARY_PATH}" WINEPREFIX="${pfxDir}" ${currentlyRunningTitleWineExecutable} ./${intendedInstaller} /VERYSILENT
