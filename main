@@ -2,7 +2,27 @@
 
 _scriptRoot="$(dirname $(realpath $0))"
 UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+processSearchListRegex=(csgo cs2 hl2_linux hl2_ srcds dota _linux)
 cd ${_scriptRoot}
+
+
+for processRegex in ${processSearchListRegex[@]}
+do
+  result=''
+  result=$(pgrep -f $processRegex| grep -v '$$')
+  if [ -n "${result}" ]
+  then
+    tainted=1
+    results+="|$(head -n1 <<< ${result})"
+  fi
+done
+
+if [ -n "$tainted" ]
+then
+  echo "Refusing to start while sensitive programs are running: ${results}"
+  exit 1
+fi
+
 
 LD_LIBRARY_PATH="${HOME}/.local/share/lutris/runtime/Ubuntu-18.04-i686"
 
