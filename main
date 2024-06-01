@@ -53,7 +53,7 @@ ceDownloadLink="$(awk -F'[= "]' '{for(i=1; i<=NF; i++) {if($i ~ "^https") print 
 wget --content-disposition --no-clobber --quiet --show-progress -U "${UA}" "${ceDownloadLink}"
 
 currentlyRunningTitle="$(ps aux|grep -Po '(?<=SteamLaunch AppId=)[0-9]+')"
-currentlyRunningTitleWineExecutable="$(ps aux | grep -Eo '/.*(compatibilitytools|Proton.*/dist/bin.*)/.*wineserver$' | sed 's/wineserver/wine/g')"
+currentlyRunningTitleWineExecutable="$(ps aux | grep -Eo '/.*(compatibilitytools|Proton.*/bin.*)/.*wineserver$' | sed 's/wineserver/wine/g')"
 
 intendedInstaller="$(ls -1 -t CheatEngine*.exe | head -n1)"
 
