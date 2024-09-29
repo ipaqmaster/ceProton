@@ -34,8 +34,7 @@ function askQuestion {
   then
     echo Continuing...
   else
-    echo Bailing.
-    exit 1
+    return 1
   fi
 
 }
@@ -66,7 +65,7 @@ fi
 if [ -n "${currentlyRunningTitle}" ]
 then
   echo "Detected AppId ${currentlyRunningTitle} is running with Proton."
-  askQuestion "Is this the title we should be installed to?"
+  askQuestion "Is this the target title?" || { echo Bailing. ; exit 1 ;}
 fi
 
 if [ -z "${currentlyRunningTitleWineExecutable}" ]
@@ -85,12 +84,18 @@ then
   echo "Failed to detect the pfx directory. Please check you are running a title with Proton and try again"
 fi
 
-existingInstallation="$(ls -1d /data/steam/steamapps/compatdata/${currentlyRunningTitle}/pfx/drive_c/Program\ Files/Cheat\ Engine\ * 2>/dev/null)"
+existingInstallation="$(ls -1d /data/steam/steamapps/compatdata/${currentlyRunningTitle}/pfx/drive_c/Program\ Files/Cheat\ Engine\ * 2>/dev/null | head -n1)"
 if [ -d "${existingInstallation}" ]
 then
   echo "CE appears to be installed already under ${existingInstallation/*drive_c}."
 fi
 
-askQuestion "Install to ${pfxDir}?"
+if askQuestion "Should we run the existing install?"
+then
+  # Get the installed CE directory.
+WINEFSYNC=1 LD_LIBRARY_PATH="${LD_LIBRARY_PATH}" WINEPREFIX="${pfxDir}" "${currentlyRunningTitleWineExecutable}" "${existingInstallation}/cheatengine-x86_64.exe"
+exit $?
+fi
 
+askQuestion "Install to ${pfxDir}?" || { echo Bailing. ; exit 1 ;}
 WINEFSYNC=1 LD_LIBRARY_PATH="${LD_LIBRARY_PATH}" WINEPREFIX="${pfxDir}" "${currentlyRunningTitleWineExecutable}" "./${intendedInstaller}" /VERYSILENT
