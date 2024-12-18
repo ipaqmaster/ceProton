@@ -5,6 +5,16 @@ UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Ge
 processSearchListRegex=(csgo cs2 hl2_linux hl2_ srcds dota _linux)
 cd ${_scriptRoot}
 
+while [ $# -gt 0 ]
+do
+  case "$(tr '[:upper:]' '[:lower:]'<<<$1)" in
+    -auto)
+      auto=1
+    ;;
+  esac
+  shift
+done
+
 
 for processRegex in ${processSearchListRegex[@]}
 do
@@ -27,6 +37,13 @@ fi
 LD_LIBRARY_PATH="${HOME}/.local/share/lutris/runtime/Ubuntu-18.04-i686"
 
 function askQuestion {
+
+  # Skip questions if -auto is specified
+  if [[ -n "$auto" ]]
+  then
+    return 0
+  fi
+
   echo "${1}"
   read -n1 -s answer
 
